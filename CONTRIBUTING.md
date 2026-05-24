@@ -1,6 +1,6 @@
 # Contributing to mockaccel-runtime
 
-Thanks for your interest. This project is a small, deliberately-scoped mock embedded inference runtime, used as a test fixture for build and CI tooling. Contributions should preserve that focus — small, readable, and easy to test against.
+Thanks for your interest. This project is a small, deliberately-scoped mock embedded inference runtime, used as a test fixture for build and CI tooling. Contributions should preserve that focus - small, readable, and easy to test against.
 
 ## Ground rules
 
@@ -16,7 +16,7 @@ See the top-level `README.md` for prerequisites and the smoke test.
 
 ## Branching
 
-Trunk-based: `main` is always releasable. Work on short-lived feature branches named `feat/<topic>`, `fix/<topic>`, or `chore/<topic>`. Open a Merge Request against `main` — no direct pushes.
+Trunk-based: `main` is always releasable. Work on short-lived feature branches named `feat/<topic>`, `fix/<topic>`, or `chore/<topic>`. Open a Merge Request against `main` - no direct pushes.
 
 ## Commit messages
 

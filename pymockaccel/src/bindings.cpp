@@ -5,7 +5,7 @@
 // Python bindings for the runtime_core SDK. Exposes Device, Model, Telemetry,
 // and the typed exception hierarchy. Inputs/outputs are Python `bytes` for
 // zero-copy-ish tensor transfer; we don't expose NumPy buffer protocol here
-// on purpose — that's an exercise the test framework owner can layer on top
+// on purpose - that's an exercise the test framework owner can layer on top
 // if they want richer tensor handling.
 
 #include <pybind11/pybind11.h>
@@ -38,7 +38,7 @@ py::bytes vec_to_bytes(const std::vector<std::uint8_t>& v) {
 }  // namespace
 
 PYBIND11_MODULE(pymockaccel, m) {
-    m.doc() = "Mock embedded inference-accelerator SDK — see mockaccel-runtime README.";
+    m.doc() = "Mock embedded inference-accelerator SDK - see mockaccel-runtime README.";
     m.attr("__version__") = "0.1.0";
 
     // -----------------------------------------------------------------------

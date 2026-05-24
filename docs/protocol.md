@@ -6,7 +6,7 @@ Concurrency: one client at a time.
 
 ## Framing
 
-Every message — both request and response — is encoded as:
+Every message - both request and response - is encoded as:
 
 ```
 [ 4-byte little-endian length ][ JSON payload ]

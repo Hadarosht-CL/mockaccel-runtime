@@ -9,7 +9,7 @@
 // in memory, returns deterministic fake tensors after a configurable latency,
 // and can be told to inject faults.
 //
-// Single-threaded, blocking I/O — kept simple on purpose. The test framework
+// Single-threaded, blocking I/O - kept simple on purpose. The test framework
 // is the focus of the broader project; this binary is the punching bag.
 
 #include <signal.h>
@@ -309,7 +309,7 @@ json handle_run_inference(const json& args) {
             g_state.active_fault = std::string(proto::fault::kNone);
         }
         if (fault == proto::fault::kTimeout) {
-            // Simulate by sleeping past a "client timeout" — actual timeout is
+            // Simulate by sleeping past a "client timeout" - actual timeout is
             // enforced by the client. We sleep long enough that any reasonable
             // client gives up first.
             std::this_thread::sleep_for(std::chrono::seconds(5));
@@ -324,7 +324,7 @@ json handle_run_inference(const json& args) {
             return error_response(proto::error_code::kEccError,
                                   "uncorrectable ECC error in tensor memory");
         }
-        // kDisconnect handled at dispatch level — see below.
+        // kDisconnect handled at dispatch level - see below.
     }
 
     // Decode input, validate size.

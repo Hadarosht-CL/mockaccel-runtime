@@ -81,7 +81,7 @@ public:
 
     void close();
 
-    // Internals reachable to friends — kept public for simplicity since this
+    // Internals reachable to friends - kept public for simplicity since this
     // SDK has a single consumer (Model). A real SDK would use friend or pimpl.
     class Impl;
     Impl& impl() { return *impl_; }

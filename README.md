@@ -4,7 +4,7 @@
 
 A small mock **embedded inference-accelerator runtime**: a Linux daemon that pretends to be a neural-network accelerator chip, plus a thin SDK (C++ + Python) that talks to it.
 
-It exists to serve as the **SUT** (*System Under Test* — the program a test framework exercises) for practicing CI/CD, build automation, cross-compilation, and validation tooling against a realistic embedded software shape, without needing real silicon.
+It exists to serve as the **SUT** (*System Under Test* - the program a test framework exercises) for practicing CI/CD, build automation, cross-compilation, and validation tooling against a realistic embedded software shape, without needing real silicon.
 
 The "device" is a process. The "SDK" is a static library plus Python bindings. The whole thing builds in under a minute on a laptop and runs entirely in user space.
 
@@ -17,7 +17,7 @@ Real embedded inference stacks (TensorRT, OpenVINO, vendor NPU SDKs) share a com
 - an **IPC boundary** (PCIe, USB, shared memory) between the host code and the device firmware
 - **telemetry** (temperature, utilization, power) and **fault behaviors** (timeouts, throttling, ECC errors)
 
-`mockaccel-runtime` reproduces that *behavior surface* — not the silicon, not real ML — so that a test framework written against it exercises the same patterns as a test framework written against a real device:
+`mockaccel-runtime` reproduces that *behavior surface* - not the silicon, not real ML - so that a test framework written against it exercises the same patterns as a test framework written against a real device:
 
 - spawning a device-side process, waiting for it to become ready, tearing it down
 - request/response correlation over a socket
@@ -65,11 +65,11 @@ Real embedded inference stacks (TensorRT, OpenVINO, vendor NPU SDKs) share a com
 | Component | Language | Role |
 |---|---|---|
 | `device_simulator/` | C++17 | Standalone daemon. Listens on a UNIX socket. Holds loaded models in memory. Returns deterministic fake tensors after a configurable latency. Can be told to inject faults that affect the next inference. |
-| `runtime_core/` | C++17 | Static library — the "SDK internals". Owns the socket, frames requests, parses responses, maps wire-level errors to typed C++ exceptions. The public C++ headers in `include/mockaccel/` are what an embedding application would use. |
+| `runtime_core/` | C++17 | Static library - the "SDK internals". Owns the socket, frames requests, parses responses, maps wire-level errors to typed C++ exceptions. The public C++ headers in `include/mockaccel/` are what an embedding application would use. |
 | `pymockaccel/` | C++ + Python | pybind11 module wrapping `runtime_core`. The Python-side surface that test code imports. |
 | `include/mockaccel/` | C++ headers | Public SDK API: `Device`, `Model`, `Telemetry`, the full exception hierarchy. |
 | `examples/` | Python | One end-to-end smoke script (`hello.py`) and two example model manifests. |
-| `docs/protocol.md` | Markdown | Canonical wire-protocol spec — the source of truth for what the daemon and the SDK agree on. |
+| `docs/protocol.md` | Markdown | Canonical wire-protocol spec - the source of truth for what the daemon and the SDK agree on. |
 
 ### Process model
 
@@ -78,7 +78,7 @@ Two processes, one client at a time:
 1. `device_simulator` runs as a long-lived daemon. It owns the UNIX socket file.
 2. Any client (the Python smoke script, a pytest fixture, a CLI tool) opens one connection at a time, runs through a session, closes.
 
-Multiple concurrent clients are *not* supported by design — the test framework is the focus, and a single-connection server is easier to reason about. The daemon accepts the next client as soon as the current one disconnects.
+Multiple concurrent clients are *not* supported by design - the test framework is the focus, and a single-connection server is easier to reason about. The daemon accepts the next client as soon as the current one disconnects.
 
 ### Wire protocol (one-paragraph summary)
 
@@ -96,7 +96,7 @@ The daemon understands five fault types injected via `inject_fault`:
 | `ecc_error`        | Returns an uncorrectable-memory error (ECC = *Error-Correcting Code*, the on-chip memory protection that detects bit flips) | `EccError` |
 | `disconnect`       | Drops the socket without responding | `TransportError` |
 
-Each fault is consumed by exactly one inference call, then auto-clears. This is deliberate — it makes faults trivial to parametrize in tests:
+Each fault is consumed by exactly one inference call, then auto-clears. This is deliberate - it makes faults trivial to parametrize in tests:
 
 ```python
 @pytest.mark.parametrize("fault,exc", [
@@ -120,7 +120,7 @@ output[i] = input[i] XOR (handle & 0xFF)    # for i in range(min(S_in_bytes, S_o
 output[i] = 0                                # for any remaining bytes
 ```
 
-This is deterministic, fast (~microseconds before the simulated latency sleep), and lets golden-file tests work without any ML dependencies. All tensors are flat `uint8` byte buffers — no NumPy on the wire.
+This is deterministic, fast (~microseconds before the simulated latency sleep), and lets golden-file tests work without any ML dependencies. All tensors are flat `uint8` byte buffers - no NumPy on the wire.
 
 ### Telemetry semantics
 
@@ -155,7 +155,7 @@ Produces:
 
 | Option | Default | Notes |
 |---|---|---|
-| `MOCKACCEL_BUILD_PYTHON` | `ON`  | Set to `OFF` to skip pybind11 (needed for cross-compilation — the Python bindings do not cross-compile cleanly). |
+| `MOCKACCEL_BUILD_PYTHON` | `ON`  | Set to `OFF` to skip pybind11 (needed for cross-compilation - the Python bindings do not cross-compile cleanly). |
 | `CMAKE_BUILD_TYPE`       | `Release` | Standard CMake build type. |
 | `CMAKE_TOOLCHAIN_FILE`   | unset | Point at a cross-compilation toolchain file to build the C++ pieces for another architecture (e.g. ARM64). |
 
@@ -171,10 +171,10 @@ git -C third_party/pybind11 checkout v2.13.6
 ## Smoke test
 
 ```bash
-# Terminal 1 — start the daemon
+# Terminal 1 - start the daemon
 ./build/device_simulator/mockaccel_device_simulator
 
-# Terminal 2 — load a model, infer, read telemetry, exercise a fault
+# Terminal 2 - load a model, infer, read telemetry, exercise a fault
 PYTHONPATH=build/pymockaccel python3 examples/hello.py
 ```
 
@@ -232,4 +232,4 @@ mockaccel-runtime/
 - No persistence. Loaded models live in process memory.
 - No async API. Every call is blocking.
 
-These omissions are intentional — they keep the SUT small enough to read in one sitting while preserving every behavior a test framework needs to exercise.
+These omissions are intentional - they keep the SUT small enough to read in one sitting while preserving every behavior a test framework needs to exercise.

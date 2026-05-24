@@ -1,4 +1,4 @@
-# CODEOWNERS — https://docs.gitlab.com/ee/user/project/codeowners/
+# CODEOWNERS - https://docs.gitlab.com/ee/user/project/codeowners/
 #
 # Lines match file paths (gitignore-style). The user(s) or group(s) listed
 # after the pattern are auto-requested as reviewers on every MR that touches
