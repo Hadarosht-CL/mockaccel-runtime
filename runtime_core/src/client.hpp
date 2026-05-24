@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-// runtime_core/client.hpp — the socket-level RPC client.
+// runtime_core/client.hpp - the socket-level RPC client.
 // Owns the fd; handles connect, request/response correlation, and translating
 // wire-level errors into typed C++ exceptions from mockaccel/errors.hpp.
 

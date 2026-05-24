@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-// runtime_core/device.cpp — implementation of the public Device/Model API.
+// runtime_core/device.cpp - implementation of the public Device/Model API.
 // Owns a Client and converts Device::Impl method calls into wire RPCs.
 
 #include "mockaccel/device.hpp"
@@ -34,7 +34,7 @@ Device::~Device() = default;
 
 std::unique_ptr<Device> Device::open(const std::string& socket_path) {
     auto impl = std::make_unique<Impl>(socket_path);
-    // Private constructor — use a small adapter.
+    // Private constructor - use a small adapter.
     struct Maker : public Device {
         explicit Maker(std::unique_ptr<Impl> i) : Device(std::move(i)) {}
     };

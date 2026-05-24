@@ -89,7 +89,7 @@ nlohmann::json Client::call(const std::string& op, nlohmann::json args) {
 
     // ID correlation is single-request-in-flight, so we just sanity-check.
     if (!resp.contains("id") || resp["id"] != id) {
-        // Not fatal — log-and-continue would be reasonable, but here we treat
+        // Not fatal - log-and-continue would be reasonable, but here we treat
         // it as a protocol violation.
         throw ProtocolError("response id mismatch");
     }
