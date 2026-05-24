@@ -1,5 +1,7 @@
 # mockaccel-runtime
 
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
 A small mock **embedded inference-accelerator runtime**: a Linux daemon that pretends to be a neural-network accelerator chip, plus a thin SDK (C++ + Python) that talks to it.
 
 It exists to serve as the **SUT** (*System Under Test* — the program a test framework exercises) for practicing CI/CD, build automation, cross-compilation, and validation tooling against a realistic embedded software shape, without needing real silicon.
