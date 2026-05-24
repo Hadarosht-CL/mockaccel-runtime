@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 // runtime_core/codec.hpp — base64 + length-prefix framing helpers.
 // Internal to runtime_core. Mirrors what device_simulator does, kept in sync
 // by the protocol spec (docs/protocol.md).

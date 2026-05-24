@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 // pymockaccel/bindings.cpp
 //
 // Python bindings for the runtime_core SDK. Exposes Device, Model, Telemetry,

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 // device_simulator/main.cpp
 //
 // Mock embedded inference-accelerator daemon.

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 // mockaccel/errors.hpp
 //
 // Exception hierarchy surfaced by runtime_core. The client maps wire-level

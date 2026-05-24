@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 cmake_minimum_required(VERSION 3.20)
 project(mockaccel_runtime
     VERSION 0.1.0

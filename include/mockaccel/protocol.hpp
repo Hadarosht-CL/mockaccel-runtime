@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 // mockaccel/protocol.hpp
 //
 // Shared constants used by both ends of the wire. The protocol itself is

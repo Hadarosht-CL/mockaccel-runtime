@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 """End-to-end smoke script for mockaccel-runtime.
 
 Prerequisites:

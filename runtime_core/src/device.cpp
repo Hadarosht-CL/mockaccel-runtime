@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 // runtime_core/device.cpp — implementation of the public Device/Model API.
 // Owns a Client and converts Device::Impl method calls into wire RPCs.
 

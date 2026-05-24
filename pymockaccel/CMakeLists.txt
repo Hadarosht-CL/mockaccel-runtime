@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 pybind11_add_module(pymockaccel
     src/bindings.cpp
 )

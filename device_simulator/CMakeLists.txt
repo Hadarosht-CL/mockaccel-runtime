@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 add_executable(mockaccel_device_simulator
     src/main.cpp
 )

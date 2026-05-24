@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 // mockaccel/device.hpp
 //
 // Public SDK API. This is what runtime_core exposes and what pymockaccel

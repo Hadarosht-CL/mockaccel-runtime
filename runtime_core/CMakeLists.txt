@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 add_library(mockaccel_runtime STATIC
     src/client.cpp
     src/device.cpp
