@@ -63,6 +63,10 @@ while (($# > 0)); do
             exit 2
             ;;
     esac
+    # SC2317: every case currently exits, making `shift` unreachable.
+    # Kept on purpose: Stage 7 will add real flags that fall through,
+    # and the rest of scripts/ uses this exact loop shape.
+    # shellcheck disable=SC2317
     shift
 done
 

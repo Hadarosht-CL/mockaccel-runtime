@@ -106,9 +106,13 @@ main() {
         log_step "lint: shellcheck"
         require_cmd shellcheck
         # -x: follow `source` directives so common.sh is checked in context.
+        # -P SCRIPTDIR: resolve relative source paths against each script's
+        #   own directory, not shellcheck's cwd. Without this, the
+        #   `# shellcheck source=lib/common.sh` hints emit SC1091 when
+        #   lint.sh is invoked from anywhere other than scripts/.
         # We pass every file in one invocation so shellcheck can resolve
         # cross-file references.
-        if ! shellcheck -x "${files[@]}"; then
+        if ! shellcheck -x -P SCRIPTDIR "${files[@]}"; then
             sc_rc=64
             log_error "lint: shellcheck reported issues"
         fi
