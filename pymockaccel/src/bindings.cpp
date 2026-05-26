@@ -56,15 +56,15 @@ PYBIND11_MODULE(pymockaccel, m) {
 
     py::register_exception_translator([](std::exception_ptr p) {
         try { if (p) std::rethrow_exception(p); }
-        catch (const TransportError& e)       { exc_transport(e.what()); }
-        catch (const ProtocolError& e)        { exc_protocol(e.what()); }
-        catch (const BadRequestError& e)      { exc_bad_request(e.what()); }
-        catch (const NotFoundError& e)        { exc_not_found(e.what()); }
-        catch (const TimeoutError& e)         { exc_timeout(e.what()); }
-        catch (const ThermalThrottleError& e) { exc_thermal(e.what()); }
-        catch (const EccError& e)             { exc_ecc(e.what()); }
-        catch (const DeviceInternalError& e)  { exc_internal(e.what()); }
-        catch (const MockAccelError& e)       { exc_base(e.what()); }
+        catch (const TransportError& e)       { py::set_error(exc_transport, e.what()); }
+        catch (const ProtocolError& e)        { py::set_error(exc_protocol, e.what()); }
+        catch (const BadRequestError& e)      { py::set_error(exc_bad_request, e.what()); }
+        catch (const NotFoundError& e)        { py::set_error(exc_not_found, e.what()); }
+        catch (const TimeoutError& e)         { py::set_error(exc_timeout, e.what()); }
+        catch (const ThermalThrottleError& e) { py::set_error(exc_thermal, e.what()); }
+        catch (const EccError& e)             { py::set_error(exc_ecc, e.what()); }
+        catch (const DeviceInternalError& e)  { py::set_error(exc_internal, e.what()); }
+        catch (const MockAccelError& e)       { py::set_error(exc_base, e.what()); }
     });
 
     // -----------------------------------------------------------------------
