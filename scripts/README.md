@@ -19,6 +19,8 @@ scripts/
   package.sh         Produce distributable artifacts (stub until Stage 7).
   release.sh         Tag-driven release flow (stub until Stage 10).
   lint.sh            Run shellcheck and shfmt across scripts/.
+  publish.sh	     Push artifacts to Artifactory (stub until Stage 7).
+  deploy.sh	     Deploy via Helm to k3s (stub until Stage 9).
 ```
 
 The call graph CI follows is linear:
