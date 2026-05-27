@@ -4,11 +4,16 @@
 #
 # Pipeline-as-code entry point. Every job's `script:` is a single call
 # into ./scripts/<verb>.sh. Logic lives in scripts/, not this YAML.
-# That keeps the YAML small and lets the Jenkinsfile (Step 5) mirror
-# this pipeline by calling the same scripts.
 #
-# Step 2 scope: lint + build only. test / cross-build / package /
-# publish / deploy are added in following MRs (Merge Requests).
+# Step 3 scope: lint + build + test + cross-build + package wired.
+# publish / deploy land in Step 4 (rules-based gating on tags/main).
+#
+# Features exercised so far:
+# - default:, stages:, variables:, extends: (incl. list form)
+# - needs: for DAG execution (jobs start as soon as deps finish)
+# - parallel:matrix: for fan-out
+# - artifacts: passing build output between jobs in the same pipeline
+# - cache: persisting FetchContent downloads across pipeline runs
 
 default:
   image: ubuntu:22.04
@@ -33,8 +38,6 @@ variables:
   SHFMT_VERSION: "v3.8.0"
 
 # --- hidden job templates --------------------------------------------------
-# `.foo` jobs are templates referenced via `extends:`. They are never
-# scheduled themselves (the leading dot hides them from the runner).
 
 .install-shell-tools:
   before_script:
@@ -53,6 +56,18 @@ variables:
     - ninja --version
     - git --version
 
+# Caches FetchContent downloads (e.g. nlohmann_json) across pipeline
+# runs. Key is computed from CMakeLists.txt content so the cache
+# invalidates automatically when dependency declarations change.
+.cache-fetchcontent:
+  cache:
+    key:
+      files:
+        - CMakeLists.txt
+    paths:
+      - build/_deps/
+    policy: pull-push
+
 # --- jobs ------------------------------------------------------------------
 
 lint:
@@ -63,7 +78,9 @@ lint:
 
 build:
   stage: build
-  extends: .install-build-tools
+  extends:
+    - .install-build-tools
+    - .cache-fetchcontent
   script:
     - ./scripts/build.sh
   artifacts:
@@ -72,3 +89,42 @@ build:
       - build/
     expire_in: 1 day
     when: on_success
+
+# Test job fan-out via parallel:matrix. Today test.sh is a stub so both
+# variants run the same code; Stage 5 will have test.sh read BUILD_TYPE
+# and exercise the matching binary.
+test:
+  stage: test
+  extends: .install-build-tools
+  needs:
+    - build
+  parallel:
+    matrix:
+      - BUILD_TYPE: [Release, Debug]
+  script:
+    - echo "BUILD_TYPE=${BUILD_TYPE}"
+    - ./scripts/test.sh
+
+# Cross-compile to ARM64. build.sh --target=aarch64 is a Stage 4 stub
+# today (warns and exits 0); the job structure is here so Stage 4
+# only has to swap the script body.
+cross-build:
+  stage: cross-build
+  extends: .install-build-tools
+  needs:
+    - build
+  script:
+    - ./scripts/build.sh --target=aarch64
+
+# Package the host build into a release tarball. package.sh is a Stage 7
+# stub today; the publish stage in Step 4 will push the resulting
+# artifacts to Artifactory.
+package:
+  stage: package
+  extends: .install-build-tools
+  needs:
+    - build
+    - test
+    - cross-build
+  script:
+    - ./scripts/package.sh
