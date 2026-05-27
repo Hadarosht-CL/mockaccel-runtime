@@ -1,0 +1,73 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# .gitlab-ci.yml
+#
+# Pipeline-as-code entry point. Every job's `script:` is a single call
+# into ./scripts/<verb>.sh. Logic lives in scripts/, not this YAML.
+# That keeps the YAML small and lets the Jenkinsfile (Step 5) mirror
+# this pipeline by calling the same scripts.
+#
+# Step 2 scope: lint + build only. test / cross-build / package /
+# publish / deploy are added in following MRs (Merge Requests).
+
+default:
+  image: ubuntu:22.04
+  interruptible: true
+
+stages:
+  - lint
+  - build
+  - test
+  - cross-build
+  - package
+  - publish
+  - deploy
+
+variables:
+  DEBIAN_FRONTEND: noninteractive
+  GIT_DEPTH: "20"
+  # Skip the Python bindings in CI for now; pybind11 + python3-dev
+  # cost build time we do not yet need. Stage 5 will turn this back
+  # on for the integration-test matrix.
+  CMAKE_FLAGS: "-DMOCKACCEL_BUILD_PYTHON=OFF"
+  SHFMT_VERSION: "v3.8.0"
+
+# --- hidden job templates --------------------------------------------------
+# `.foo` jobs are templates referenced via `extends:`. They are never
+# scheduled themselves (the leading dot hides them from the runner).
+
+.install-shell-tools:
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y --no-install-recommends shellcheck curl ca-certificates
+    - curl -fsSL -o /usr/local/bin/shfmt "https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION}_linux_amd64"
+    - chmod +x /usr/local/bin/shfmt
+    - shellcheck --version
+    - shfmt --version
+
+.install-build-tools:
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y --no-install-recommends build-essential cmake ninja-build ca-certificates
+    - cmake --version
+    - ninja --version
+
+# --- jobs ------------------------------------------------------------------
+
+lint:
+  stage: lint
+  extends: .install-shell-tools
+  script:
+    - ./scripts/lint.sh
+
+build:
+  stage: build
+  extends: .install-build-tools
+  script:
+    - ./scripts/build.sh
+  artifacts:
+    name: "build-host-${CI_COMMIT_SHORT_SHA}"
+    paths:
+      - build/
+    expire_in: 1 day
+    when: on_success
