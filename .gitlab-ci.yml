@@ -128,3 +128,46 @@ package:
     - cross-build
   script:
     - ./scripts/package.sh
+
+# Push artifacts to the registry. Runs on every main commit (dev repo)
+# and on every v*.*.* tag (prod repo). publish.sh is a Stage 7 stub.
+publish:
+  stage: publish
+  extends: .install-build-tools
+  needs:
+    - package
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+  script:
+    - ./scripts/publish.sh
+
+# Deploy to a Kubernetes target. Tag-only (only released versions are
+# deployed). deploy.sh is a Stage 9 stub.
+deploy:
+  stage: deploy
+  extends: .install-build-tools
+  needs:
+    - publish
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+  script:
+    - ./scripts/deploy.sh
+
+# Create a GitLab Release page on v*.*.* tags. Uses GitLab's release:
+# keyword (handled by the release-cli image). Stage 10 will wire a
+# real CHANGELOG via git-cliff; today the description is a placeholder.
+release:
+  stage: deploy
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  needs:
+    - publish
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+  script:
+    - echo "Creating GitLab Release for ${CI_COMMIT_TAG}"
+  release:
+    tag_name: $CI_COMMIT_TAG
+    name: "Release ${CI_COMMIT_TAG}"
+    description: "Automated release from tag ${CI_COMMIT_TAG}. Full CHANGELOG lands in Stage 10."
+    ref: $CI_COMMIT_SHA
