@@ -6,12 +6,12 @@
 # Configure and build the SUT (System Under Test) via CMake + Ninja.
 # This is the single entry point CI and developers use to build the repo.
 #
-# Today it builds for the host. In Stage 4, a `--target` flag will be
-# added for cross-compilation to ARM64; the placeholder is documented
-# in --help below so the contract is visible early.
+# --target=host    builds for the current host (default).
+# --target=aarch64 is a Stage 4 placeholder: today it warns and exits 0
+#                  so Stage 6 CI can call it as the cross-build verb.
 #
 # Exit codes:
-#   0   build succeeded
+#   0   build succeeded (or aarch64 stub no-op)
 #   1   generic failure
 #   2   usage error
 #   64  cmake configure failed
@@ -27,11 +27,16 @@ source "${SCRIPT_DIR}/lib/common.sh"
 # --- usage -----------------------------------------------------------------
 usage() {
     cat <<'EOF'
-Usage: build.sh [--clean] [--debug] [--jobs N] [--build-dir DIR] [--help]
+Usage: build.sh [--target=host|aarch64] [--clean] [--debug] [--jobs N]
+                [--build-dir DIR] [--help]
 
 Configures the repo with CMake and builds it with Ninja.
 
 Options:
+  --target=T      Build target. T is one of:
+                    host     build for the current host (default).
+                    aarch64  Stage 4 placeholder. Warns and exits 0
+                             so CI can wire a cross-build job today.
   --clean         Remove the build directory before configuring.
   --debug         Configure as Debug. Default: Release.
   --jobs N        Parallel build jobs. Default: cmake's auto-detect.
@@ -42,12 +47,8 @@ Environment:
   BUILD_DIR       Overrides the default build directory ('build').
   CMAKE_FLAGS     Extra flags appended to the cmake configure step.
 
-Future (Stage 4):
-  --target=host|aarch64   Selects the toolchain. Not implemented yet;
-                          all builds today target the host.
-
 Exit codes:
-  0   build succeeded
+  0   build succeeded (or aarch64 stub no-op)
   2   usage error
   64  cmake configure failed
   65  cmake build failed
@@ -59,6 +60,7 @@ clean=0
 build_type="Release"
 jobs=""
 build_dir="${BUILD_DIR:-build}"
+target="host"
 
 # --- arg parsing -----------------------------------------------------------
 while (($# > 0)); do
@@ -85,10 +87,16 @@ while (($# > 0)); do
             build_dir="$1"
             ;;
         --build-dir=*) build_dir="${1#*=}" ;;
-        --target | --target=*)
-            log_error "--target is reserved for future project development"
-            exit 2
+        --target)
+            shift
+            if (($# == 0)); then
+                log_error "--target requires a value"
+                usage >&2
+                exit 2
+            fi
+            target="$1"
             ;;
+        --target=*) target="${1#*=}" ;;
         -h | --help)
             usage
             exit 0
@@ -102,6 +110,12 @@ while (($# > 0)); do
     shift
 done
 
+# Validate --target.
+case "${target}" in
+    host | aarch64) ;;
+    *) die "--target must be 'host' or 'aarch64', got '${target}'" 2 ;;
+esac
+
 # Validate --jobs is a positive integer if provided.
 if [[ -n "${jobs}" ]] && ! [[ "${jobs}" =~ ^[1-9][0-9]*$ ]]; then
     die "--jobs must be a positive integer, got '${jobs}'" 2
@@ -109,6 +123,13 @@ fi
 
 # --- main ------------------------------------------------------------------
 main() {
+    if [[ "${target}" == "aarch64" ]]; then
+        log_step "build: target=aarch64 stub"
+        log_warn "cross-compilation is not implemented yet (lands in Stage 4)"
+        log_info "this stub lets Stage 6 CI call ./scripts/build.sh --target=aarch64"
+        exit 0
+    fi
+
     require_cmd cmake ninja
 
     local root
@@ -121,7 +142,7 @@ main() {
         build_dir="${root}/${build_dir}"
     fi
 
-    log_step "build: target=host type=${build_type} dir=${build_dir}"
+    log_step "build: target=${target} type=${build_type} dir=${build_dir}"
 
     if [[ "${clean}" -eq 1 ]]; then
         if [[ -e "${build_dir}" ]]; then
