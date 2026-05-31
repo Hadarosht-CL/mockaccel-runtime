@@ -18,3 +18,9 @@ CMakeCache.txt
 CMakeFiles/
 *.cmake
 !cmake/**
+
+# Tool caches and editable-install metadata
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+*.egg-info/
