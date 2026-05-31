@@ -110,14 +110,17 @@ test:
     - echo "BUILD_TYPE=${BUILD_TYPE}"
     - ./scripts/test.sh
 
-# Cross-compile to ARM64. build.sh --target=aarch64 is a Stage 4 stub
-# today (warns and exits 0); the job structure is here so Stage 4
-# only has to swap the script body.
+# Cross-compile to ARM64. Stage 4 step 2 wired build.sh to a real
+# cross-build, but the cross-compiler is not installed in the CI
+# image yet; that lands in Stage 4 step 3. Until then this job is
+# expected to fail and is marked allow_failure so main stays green.
+# REMOVE allow_failure in the Stage 4 step 3 MR.
 cross-build:
   stage: cross-build
   extends: .install-build-tools
   needs:
     - build
+  allow_failure: true
   script:
     - ./scripts/build.sh --target=aarch64
 
