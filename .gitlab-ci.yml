@@ -90,17 +90,22 @@ build:
     expire_in: 1 day
     when: on_success
 
-# Test job fan-out via parallel:matrix. Today test.sh is a stub so both
-# variants run the same code; Stage 5 will have test.sh read BUILD_TYPE
-# and exercise the matching binary.
+# Test job fan-out via parallel:matrix. test.sh reads BUILD_TYPE and
+# surfaces it in pytest's report header so each matrix cell is self-
+# labelling in the log. We call ./scripts/bootstrap.sh here instead of
+# extending .install-build-tools because the test job needs Python and
+# a populated .venv/, which bootstrap.sh creates. This is also the
+# first step toward retiring .install-build-tools duplication
+# (Stage 6 carry-forward DRY note).
 test:
   stage: test
-  extends: .install-build-tools
   needs:
     - build
   parallel:
     matrix:
       - BUILD_TYPE: [Release, Debug]
+  before_script:
+    - ./scripts/bootstrap.sh
   script:
     - echo "BUILD_TYPE=${BUILD_TYPE}"
     - ./scripts/test.sh
