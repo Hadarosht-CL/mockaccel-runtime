@@ -7,11 +7,13 @@
 # This is the single entry point CI and developers use to build the repo.
 #
 # --target=host    builds for the current host (default).
-# --target=aarch64 is a Stage 4 placeholder: today it warns and exits 0
-#                  so Stage 6 CI can call it as the cross-build verb.
+# --target=aarch64 cross-compiles the C++ pieces for 64-bit ARM Linux
+#                  using cmake/toolchains/aarch64-linux-gnu.cmake.
+#                  Requires aarch64-linux-gnu-g++ on PATH. Python
+#                  bindings are forced OFF for the cross build.
 #
 # Exit codes:
-#   0   build succeeded (or aarch64 stub no-op)
+#   0   build succeeded
 #   1   generic failure
 #   2   usage error
 #   64  cmake configure failed
@@ -35,12 +37,14 @@ Configures the repo with CMake and builds it with Ninja.
 Options:
   --target=T      Build target. T is one of:
                     host     build for the current host (default).
-                    aarch64  Stage 4 placeholder. Warns and exits 0
-                             so CI can wire a cross-build job today.
+                    aarch64  cross-compile for 64-bit ARM Linux using
+                             cmake/toolchains/aarch64-linux-gnu.cmake.
+                             Requires aarch64-linux-gnu-g++ on PATH.
   --clean         Remove the build directory before configuring.
   --debug         Configure as Debug. Default: Release.
   --jobs N        Parallel build jobs. Default: cmake's auto-detect.
-  --build-dir DIR Build directory. Default: $BUILD_DIR or 'build'.
+  --build-dir DIR Build directory. Default: 'build' for host,
+                  'build-aarch64' for aarch64, or $BUILD_DIR.
   -h, --help      Show this help and exit.
 
 Environment:
@@ -56,10 +60,12 @@ EOF
 }
 
 # --- defaults --------------------------------------------------------------
+# build_dir stays empty here so we can pick a target-aware default
+# (build/ for host, build-aarch64/ for cross) AFTER arg parsing.
 clean=0
 build_type="Release"
 jobs=""
-build_dir="${BUILD_DIR:-build}"
+build_dir=""
 target="host"
 
 # --- arg parsing -----------------------------------------------------------
@@ -121,16 +127,27 @@ if [[ -n "${jobs}" ]] && ! [[ "${jobs}" =~ ^[1-9][0-9]*$ ]]; then
     die "--jobs must be a positive integer, got '${jobs}'" 2
 fi
 
+# Resolve the default build directory now that --target and
+# --build-dir have both been parsed. Precedence:
+#   1. --build-dir / --build-dir=DIR  (explicit, wins)
+#   2. BUILD_DIR env var              (explicit caller intent)
+#   3. target-aware default           (build-aarch64 for cross, build for host)
+if [[ -z "${build_dir}" ]]; then
+    if [[ -n "${BUILD_DIR:-}" ]]; then
+        build_dir="${BUILD_DIR}"
+    elif [[ "${target}" == "aarch64" ]]; then
+        build_dir="build-aarch64"
+    else
+        build_dir="build"
+    fi
+fi
+
 # --- main ------------------------------------------------------------------
 main() {
-    if [[ "${target}" == "aarch64" ]]; then
-        log_step "build: target=aarch64 stub"
-        log_warn "cross-compilation is not implemented yet (lands in Stage 4)"
-        log_info "this stub lets Stage 6 CI call ./scripts/build.sh --target=aarch64"
-        exit 0
-    fi
-
     require_cmd cmake ninja
+    if [[ "${target}" == "aarch64" ]]; then
+        require_cmd aarch64-linux-gnu-g++
+    fi
 
     local root
     root="$(repo_root)"
@@ -153,13 +170,21 @@ main() {
         fi
     fi
 
+    # Assemble CMake -D flags. Order matters: target-specific flags go
+    # first so a caller-supplied CMAKE_FLAGS can still override them
+    # (cmake honors the last -D for a given variable).
+    local -a extra_flags=()
+    if [[ "${target}" == "aarch64" ]]; then
+        local toolchain="${root}/cmake/toolchains/aarch64-linux-gnu.cmake"
+        extra_flags+=("-DCMAKE_TOOLCHAIN_FILE=${toolchain}")
+        extra_flags+=("-DMOCKACCEL_BUILD_PYTHON=OFF")
+    fi
     # CMAKE_FLAGS is intentionally word-split so callers can pass
     # multiple flags via the environment, e.g.
     #   CMAKE_FLAGS="-DMOCKACCEL_BUILD_PYTHON=OFF -DFOO=BAR" scripts/build.sh
-    local -a extra_flags=()
     if [[ -n "${CMAKE_FLAGS:-}" ]]; then
         # shellcheck disable=SC2206  # deliberate word-split for env-supplied flags
-        extra_flags=(${CMAKE_FLAGS})
+        extra_flags+=(${CMAKE_FLAGS})
     fi
 
     log_step "build: configuring"
