@@ -193,7 +193,7 @@ main() {
         -B "${build_dir}" \
         -G Ninja \
         -DCMAKE_BUILD_TYPE="${build_type}" \
-        "${extra_flags[@]}"; then
+        ${extra_flags[@]+"${extra_flags[@]}"}; then
         die "cmake configure failed" 64
     fi
 
