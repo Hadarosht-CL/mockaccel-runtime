@@ -37,7 +37,8 @@ pipeline {
                     apt-get update -qq
                     apt-get install -y --no-install-recommends \
                         shellcheck curl ca-certificates git \
-                        build-essential cmake ninja-build
+                        build-essential cmake ninja-build \
+                        g++-aarch64-linux-gnu qemu-user-static file
                     curl -fsSL -o /usr/local/bin/shfmt \
                         "https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION}_linux_amd64"
                     chmod +x /usr/local/bin/shfmt
@@ -45,6 +46,9 @@ pipeline {
                     shfmt --version
                     cmake --version
                     ninja --version
+                    aarch64-linux-gnu-g++ --version
+                    qemu-aarch64-static --version
+                    file --version
                     git --version
                 '''
             }
@@ -63,7 +67,15 @@ pipeline {
         }
 
         stage('Cross-build') {
-            steps { sh './scripts/build.sh --target=aarch64' }
+            steps {
+                sh '''
+                    ./scripts/build.sh --target=aarch64
+                    BIN=build-aarch64/device_simulator/mockaccel_device_simulator
+                    file "${BIN}"
+                    file "${BIN}" | grep -q "ELF 64-bit LSB.*ARM aarch64"
+                    qemu-aarch64-static "${BIN}" --version
+                '''
+            }
         }
 
         stage('Package') {
