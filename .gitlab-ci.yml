@@ -56,6 +56,19 @@ variables:
     - ninja --version
     - git --version
 
+.install-cross-tools:
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y --no-install-recommends
+        build-essential cmake ninja-build ca-certificates git
+        g++-aarch64-linux-gnu qemu-user-static file
+    - cmake --version
+    - ninja --version
+    - aarch64-linux-gnu-g++ --version
+    - qemu-aarch64-static --version
+    - file --version
+    - git --version
+
 # Caches FetchContent downloads (e.g. nlohmann_json) across pipeline
 # runs. Key is computed from CMakeLists.txt content so the cache
 # invalidates automatically when dependency declarations change.
@@ -110,19 +123,29 @@ test:
     - echo "BUILD_TYPE=${BUILD_TYPE}"
     - ./scripts/test.sh
 
-# Cross-compile to ARM64. Stage 4 step 2 wired build.sh to a real
-# cross-build, but the cross-compiler is not installed in the CI
-# image yet; that lands in Stage 4 step 3. Until then this job is
-# expected to fail and is marked allow_failure so main stays green.
-# REMOVE allow_failure in the Stage 4 step 3 MR.
+# Cross-compile to ARM64 and verify the artifact is a real ARM ELF
+# that actually executes under user-mode QEMU. The verification is
+# inline (not a wrapper script) because it is the cross-build job's
+# entire reason to exist - hiding it in a script makes the pipeline
+# read like all it does is run a build command.
 cross-build:
   stage: cross-build
-  extends: .install-build-tools
+  extends: .install-cross-tools
   needs:
     - build
   allow_failure: true
   script:
     - ./scripts/build.sh --target=aarch64
+    - BIN=build-aarch64/device_simulator/mockaccel_device_simulator
+    - file "${BIN}"
+    - file "${BIN}" | grep -q "ELF 64-bit LSB.*ARM aarch64"
+    - qemu-aarch64-static "${BIN}" --version
+  artifacts:
+    name: "build-aarch64-${CI_COMMIT_SHORT_SHA}"
+    paths:
+      - build-aarch64/device_simulator/mockaccel_device_simulator
+    expire_in: 1 day
+    when: on_success
 
 # Package the host build into a release tarball. package.sh is a Stage 7
 # stub today; the publish stage in Step 4 will push the resulting
