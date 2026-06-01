@@ -73,6 +73,94 @@ If a script is reaching for `awk`/`sed` to parse structured output, that is the 
 
 These scripts target Ubuntu/Debian Linux because that is what CI runners use. macOS is supported on a best-effort basis for local development; `bootstrap.sh` will refuse to run on macOS and tell the developer to install `cmake`, `ninja`, `shellcheck`, and `shfmt` via Homebrew manually.
 
+## Cross-compiling to aarch64
+
+Build the C++ pieces of the SUT for 64-bit ARM Linux from any x86_64 host. The Python bindings are intentionally not cross-compiled - they are forced off by `build.sh --target=aarch64`.
+
+The one command:
+
+```bash
+./scripts/build.sh --target=aarch64
+```
+
+Output lands in `build-aarch64/` (the host build keeps using `build/`, so the two can coexist). The daemon binary is at `build-aarch64/device_simulator/mockaccel_device_simulator`.
+
+### Prerequisites - native Linux host
+
+On Debian or Ubuntu:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y --no-install-recommends \
+    g++-aarch64-linux-gnu qemu-user-static file
+```
+
+What each package gives you:
+
+- `g++-aarch64-linux-gnu` - the cross-compiler itself. CMake's toolchain file at `cmake/toolchains/aarch64-linux-gnu.cmake` calls into it.
+- `qemu-user-static` - user-mode QEMU. Lets you actually run the resulting ARM binary on an x86_64 host without booting a full ARM VM (Virtual Machine).
+- `file` - identifies the produced binary's architecture so you can prove the build did what you think it did.
+
+### Prerequisites - macOS host
+
+Apple does not package `aarch64-linux-gnu-gcc`. Run the cross-build inside the project's standard Docker container instead:
+
+```bash
+docker run --rm -t \
+    -v "$(pwd):/repo" -v /repo/build -v /repo/build-aarch64 \
+    -w /repo ubuntu:22.04 \
+    bash -lc '
+        apt-get update -qq &&
+        apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build ca-certificates git \
+            g++-aarch64-linux-gnu qemu-user-static file &&
+        ./scripts/build.sh --target=aarch64 &&
+        file build-aarch64/device_simulator/mockaccel_device_simulator &&
+        qemu-aarch64-static build-aarch64/device_simulator/mockaccel_device_simulator --version
+    '
+```
+
+The two anonymous-volume mounts (`-v /repo/build` and `-v /repo/build-aarch64`) mask the host's build directories so a container-side CMakeCache.txt does not poison your host build, and vice versa. Same trick the Stage 2 acceptance command uses for `.venv/` and `build/`.
+
+### What success looks like
+
+```bash
+$ file build-aarch64/device_simulator/mockaccel_device_simulator
+build-aarch64/device_simulator/mockaccel_device_simulator: ELF 64-bit LSB executable, ARM aarch64, version 1 (SYSV), dynamically linked, interpreter /lib/ld-linux-aarch64.so.1, ...
+```
+
+The two parts that matter: `ELF 64-bit LSB executable` and `ARM aarch64`. If `file` prints `x86-64` anywhere on that line, the cross-build silently fell back to the host compiler - see troubleshooting below.
+
+### Smoke-run under QEMU
+
+```bash
+qemu-aarch64-static build-aarch64/device_simulator/mockaccel_device_simulator --version
+```
+
+`--version` is the safest smoke target: the daemon prints a version line and exits immediately, no socket, no model, no telemetry. If QEMU can load the ELF, resolve the ARM dynamic linker, and run user code far enough to hit the version-print branch, the binary is genuinely runnable.
+
+QEMU user-mode is Linux-only (or Docker-on-anything). macOS-native cannot run a Linux ARM ELF, even with QEMU installed via Homebrew - QEMU user-mode emulates a CPU, not a kernel.
+
+### Troubleshooting
+
+**`aarch64-linux-gnu-g++: command not found`**
+
+You are missing the cross-compiler. On Linux, install `g++-aarch64-linux-gnu` (see Prerequisites above). On macOS, you cannot install it natively - use the Docker invocation instead.
+
+**`file` says the binary is `x86-64`, not `ARM aarch64`**
+
+The toolchain file was not honored. Most likely you ran raw `cmake` without `-DCMAKE_TOOLCHAIN_FILE=...` and built a host binary into `build-aarch64/` by accident. Always go through `./scripts/build.sh --target=aarch64` - it sets the toolchain flag, the Python-off flag, and the build dir together.
+
+If you did use `build.sh --target=aarch64` and still got an x86_64 binary, delete `build-aarch64/` (CMake caches the configured compiler from the first configure) and re-run with `--clean`:
+
+```bash
+./scripts/build.sh --target=aarch64 --clean
+```
+
+**`qemu-aarch64-static: ... No such file or directory`** on a binary that clearly exists
+
+QEMU is reporting that the *dynamic linker* the ARM binary asks for (`/lib/ld-linux-aarch64.so.1`) is missing on the host running QEMU. The Debian/Ubuntu `g++-aarch64-linux-gnu` package pulls in `libc6-arm64-cross` automatically, which provides that linker under `/usr/aarch64-linux-gnu/`. If you are running QEMU outside the apt-installed environment (a slim alpine container, a stripped-down sysroot), install `libc6-arm64-cross` or use the Docker invocation above, which has it.
+
 ## How to add a new verb
 
 1. Decide it really is a new verb, not a flag on an existing one. Cross-compilation is a flag on `build.sh`, not `cross_build.sh`.

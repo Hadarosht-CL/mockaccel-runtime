@@ -168,6 +168,10 @@ git submodule add https://github.com/pybind/pybind11.git third_party/pybind11
 git -C third_party/pybind11 checkout v2.13.6
 ```
 
+### Cross-compiling to ARM64
+
+See [`scripts/README.md`](scripts/README.md#cross-compiling-to-aarch64) for the full runbook (native Linux and macOS-via-Docker paths, plus QEMU smoke verification).
+
 ## Smoke test
 
 ```bash
