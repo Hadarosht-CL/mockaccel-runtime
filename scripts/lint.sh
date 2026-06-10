@@ -3,13 +3,20 @@
 #
 # scripts/lint.sh
 #
-# Lints every shell script under scripts/ with:
-#   - shellcheck -x   static analysis (follows `source` directives)
-#   - shfmt -d        formatting check; diff-only by default, --fix to apply
+# Single source of truth for repo-wide linting. Invoked by:
+#   - Stage 6 CI (.gitlab-ci.yml, Jenkinsfile)
+#   - Stage 8 pre-commit hooks (future)
+#   - Developers locally
+# Logic lives here, not in YAML and not in pre-commit config.
 #
-# This is the single source of truth that Stage 6 CI (.gitlab-ci.yml,
-# Jenkinsfile) and Stage 8 pre-commit hooks will both invoke. Logic
-# lives here, not in YAML and not in pre-commit config.
+# Checks:
+#   - shellcheck -x   shell static analysis (follows `source` directives)
+#   - shfmt -d        shell formatting check; diff-only by default, --fix to apply
+#   - hadolint        Dockerfile lint (config: .hadolint.yaml at repo root)
+#
+# Targets:
+#   - Every *.sh under scripts/ (shellcheck, shfmt)
+#   - Every Dockerfile* at repo root and one level deep (hadolint)
 #
 # Exit codes:
 #   0   all checks passed
@@ -17,6 +24,7 @@
 #   2   usage error
 #   64  shellcheck found issues
 #   65  shfmt found formatting drift (run with --fix to apply)
+#   66  hadolint found issues
 
 set -Eeuo pipefail
 IFS=$'\n\t'
@@ -28,14 +36,17 @@ source "${SCRIPT_DIR}/lib/common.sh"
 # --- usage -----------------------------------------------------------------
 usage() {
     cat <<'EOF'
-Usage: lint.sh [--fix] [--no-shellcheck] [--no-shfmt] [--help]
+Usage: lint.sh [--fix] [--no-shellcheck] [--no-shfmt] [--no-hadolint] [--help]
 
-Runs shellcheck and shfmt across every *.sh file under scripts/.
+Runs shellcheck and shfmt across every *.sh file under scripts/, and
+hadolint across every Dockerfile* at the repo root.
 
 Options:
   --fix             Apply shfmt formatting in place. Default is diff-only.
+                    Has no effect on shellcheck or hadolint (no auto-fix mode).
   --no-shellcheck   Skip shellcheck.
   --no-shfmt        Skip shfmt.
+  --no-hadolint     Skip hadolint.
   -h, --help        Show this help and exit.
 
 Formatting rules (shfmt):
@@ -43,11 +54,16 @@ Formatting rules (shfmt):
   -ci      indent switch cases
   -bn      binary ops at start of next line in long expressions
 
+Hadolint:
+  Config lives at .hadolint.yaml (repo root). Rule overrides belong there,
+  not on the command line.
+
 Exit codes:
   0   all checks passed
   2   usage error
   64  shellcheck failed
   65  shfmt found formatting drift
+  66  hadolint found issues
 EOF
 }
 
@@ -55,6 +71,7 @@ EOF
 do_fix=0
 run_shellcheck=1
 run_shfmt=1
+run_hadolint=1
 
 # --- arg parsing -----------------------------------------------------------
 while (($# > 0)); do
@@ -62,6 +79,7 @@ while (($# > 0)); do
         --fix) do_fix=1 ;;
         --no-shellcheck) run_shellcheck=0 ;;
         --no-shfmt) run_shfmt=0 ;;
+        --no-hadolint) run_hadolint=0 ;;
         -h | --help)
             usage
             exit 0
@@ -83,24 +101,41 @@ collect_files() {
     find "${SCRIPT_DIR}" -type f -name '*.sh' -print0 | sort -z
 }
 
+collect_docker_files() {
+    # Same null-delimited contract as collect_files. Dockerfiles live at
+    # repo root or one level deep (e.g. ci/Dockerfile.foo); -maxdepth 2
+    # keeps us out of build artifacts and vendored trees.
+    find "$(repo_root)" -maxdepth 2 -type f -name 'Dockerfile*' -print0 | sort -z
+}
+
 # --- main ------------------------------------------------------------------
 main() {
-    local -a files=()
-    local f
+    local -a files=() dockerfiles=()
+    local f d
     while IFS= read -r -d '' f; do
         files+=("${f}")
     done < <(collect_files)
+    while IFS= read -r -d '' d; do
+        dockerfiles+=("${d}")
+    done < <(collect_docker_files)
 
     if ((${#files[@]} == 0)); then
         die "lint: no shell files found under ${SCRIPT_DIR}" 1
     fi
 
-    log_step "lint: ${#files[@]} file(s) under scripts/"
+    log_step "lint: ${#files[@]} shell file(s) under scripts/"
     for f in "${files[@]}"; do
         log_info "  ${f#"$(repo_root)"/}"
     done
 
-    local sc_rc=0 sf_rc=0
+    if ((${#dockerfiles[@]} > 0)); then
+        log_step "lint: ${#dockerfiles[@]} Dockerfile(s) at repo root"
+        for d in "${dockerfiles[@]}"; do
+            log_info "  ${d#"$(repo_root)"/}"
+        done
+    fi
+
+    local sc_rc=0 sf_rc=0 hl_rc=0
 
     if ((run_shellcheck == 1)); then
         log_step "lint: shellcheck"
@@ -146,13 +181,29 @@ main() {
         log_warn "lint: shfmt skipped (--no-shfmt)"
     fi
 
-    # Report a single, stable exit code. Prefer shellcheck's code if both
+    if ((run_hadolint == 1)); then
+        log_step "lint: hadolint"
+        require_cmd hadolint
+        if ((${#dockerfiles[@]} == 0)); then
+            log_warn "lint: no Dockerfiles found at repo root, hadolint skipped"
+        elif ! hadolint --config "$(repo_root)/.hadolint.yaml" "${dockerfiles[@]}"; then
+            hl_rc=66
+            log_error "lint: hadolint reported issues"
+        fi
+    else
+        log_warn "lint: hadolint skipped (--no-hadolint)"
+    fi
+
+    # Report a single, stable exit code. Prefer shellcheck's code if multiple
     # failed, so CI logs surface the more actionable failure first.
     if ((sc_rc != 0)); then
         exit "${sc_rc}"
     fi
     if ((sf_rc != 0)); then
         exit "${sf_rc}"
+    fi
+    if ((hl_rc != 0)); then
+        exit "${hl_rc}"
     fi
 
     log_step "lint: done"

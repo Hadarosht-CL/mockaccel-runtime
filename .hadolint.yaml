@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
+failure-threshold: warning
+ignored:
+  - DL3008  # Pin versions in apt-get install. Impractical against a moving Debian base; pinning would force chasing point releases as the apt index is pruned.
