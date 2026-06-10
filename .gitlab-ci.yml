@@ -156,6 +156,7 @@ cross-build:
 # artifacts to Artifactory.
 package:
   stage: package
+  allow_failure: true   # TODO Stage 7 Step 5: wire dind, remove this.
   extends: .install-build-tools
   needs:
     - build
