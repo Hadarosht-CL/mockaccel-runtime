@@ -64,7 +64,7 @@ EOF
 }
 
 # CI plumbing
-target=""
+target="host"
 
 # --- arg parsing -----------------------------------------------------------
 while (($# > 0)); do
@@ -94,7 +94,6 @@ done
 
 # Validate --target
 case "${target}" in
-    "") die "must specify --target" 2 ;;
     host | aarch64) ;;
     *) die "--target must be 'host' or 'aarch64', got '${target}'" 2 ;;
 esac
