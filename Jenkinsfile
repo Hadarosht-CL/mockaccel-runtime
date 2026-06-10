@@ -18,6 +18,7 @@ pipeline {
         DEBIAN_FRONTEND = 'noninteractive'
         CMAKE_FLAGS     = '-DMOCKACCEL_BUILD_PYTHON=OFF'
         SHFMT_VERSION   = 'v3.8.0'
+	HADOLINT_VERSION = 'v2.12.0'
     }
 
     options {
@@ -41,9 +42,13 @@ pipeline {
                         g++-aarch64-linux-gnu qemu-user-static file
                     curl -fsSL -o /usr/local/bin/shfmt \
                         "https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION}_linux_amd64"
-                    chmod +x /usr/local/bin/shfmt
+                    curl -fsSL -o /usr/local/bin/hadolint \
+			"https://github.com/hadolint/hadolint/releases/download/${HADOLINT_VERSION}/hadolint-Linux-x86_64"
+		    chmod +x /usr/local/bin/shfmt
+		    chmod +x /usr/local/bin/hadolint
                     shellcheck --version
                     shfmt --version
+		    hadolint --version
                     cmake --version
                     ninja --version
                     aarch64-linux-gnu-g++ --version

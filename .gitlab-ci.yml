@@ -36,6 +36,7 @@ variables:
   # on for the integration-test matrix.
   CMAKE_FLAGS: "-DMOCKACCEL_BUILD_PYTHON=OFF"
   SHFMT_VERSION: "v3.8.0"
+  HADOLINT_VERSION: "v2.12.0"
 
 # --- hidden job templates --------------------------------------------------
 
@@ -44,9 +45,12 @@ variables:
     - apt-get update -qq
     - apt-get install -y --no-install-recommends shellcheck curl ca-certificates
     - curl -fsSL -o /usr/local/bin/shfmt "https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION}_linux_amd64"
+    - curl -fsSL -o /usr/local/bin/hadolint "https://github.com/hadolint/hadolint/releases/download/${HADOLINT_VERSION}/hadolint-Linux-x86_64"
     - chmod +x /usr/local/bin/shfmt
+    - chmod +x /usr/local/bin/hadolint
     - shellcheck --version
     - shfmt --version
+    - hadolint --version
 
 .install-build-tools:
   before_script:
