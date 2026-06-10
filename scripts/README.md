@@ -16,7 +16,7 @@ scripts/
   bootstrap.sh       Install host toolchain on Ubuntu/Debian. Idempotent.
   build.sh           Configure + build via CMake/Ninja.
   test.sh            Run all registered test suites.
-  package.sh         Produce distributable artifacts (stub until Stage 7).
+  package.sh         Build the SUT Docker image (--target=host). aarch64 path arrives in Stage 7 Step 3.
   release.sh         Tag-driven release flow (stub until Stage 10).
   lint.sh            Run shellcheck and shfmt across scripts/.
   publish.sh	     Push artifacts to Artifactory (stub until Stage 7).
@@ -160,6 +160,58 @@ If you did use `build.sh --target=aarch64` and still got an x86_64 binary, delet
 **`qemu-aarch64-static: ... No such file or directory`** on a binary that clearly exists
 
 QEMU is reporting that the *dynamic linker* the ARM binary asks for (`/lib/ld-linux-aarch64.so.1`) is missing on the host running QEMU. The Debian/Ubuntu `g++-aarch64-linux-gnu` package pulls in `libc6-arm64-cross` automatically, which provides that linker under `/usr/aarch64-linux-gnu/`. If you are running QEMU outside the apt-installed environment (a slim alpine container, a stripped-down sysroot), install `libc6-arm64-cross` or use the Docker invocation above, which has it.
+
+## Packaging the SUT as a Docker image
+
+`package.sh` wraps `docker build` so CI and local development share one entry point. The script also locks in a fixed tag scheme that the publish step (Stage 7 Step 4) reads back when pushing to the registry.
+
+The one command:
+
+```bash
+./scripts/package.sh --target=host
+```
+
+--target=host builds the amd64 image using the multi-stage `Dockerfile` at the repo root (added in Stage 7 Step 1). The resulting image is tagged `mockaccel-runtime:dev-amd64-<short-sha>`, where `<short-sha>` comes from `git rev-parse --short HEAD`. If the script is invoked outside a git checkout, the SHA placeholder is the literal string `unknown` and the rest of the script still works.
+
+--target=aarch64 is intentionally a stub in Step 2 and returns exit 67. The real aarch64 image path lands in Step 3 alongside the Dockerfile's TARGETARCH build-arg extension.
+
+Prerequisites
+Docker must be installed and the daemon reachable. require_cmd docker fails fast otherwise. No other host tooling beyond what the Dockerfile's builder stage installs itself.
+
+Verifying a freshly packaged image
+
+```bash
+# List what package.sh just tagged.
+docker images mockaccel-runtime --format '{{.Repository}}:{{.Tag}}'
+
+# Smoke-run the image - same daemon as Stage 7 Step 1, new tag.
+docker run --rm mockaccel-runtime:dev-amd64-<short-sha> --version
+```
+
+## Tag scheme
+
+`mockaccel-runtime:dev-<arch>-<short-sha>`
+
+- `<arch>`: amd64 for --target=host, arm64 for --target=aarch64. The script maps the wrapper-internal target name (host / aarch64, matching build.sh) to the Docker-world arch name in one place so the rest of the script does not have to think about the distinction.
+- `<short-sha>`: 7-character git SHA of HEAD, or unknown when not in a git checkout.
+
+Stage 7 Step 4 extends this scheme with additional moving tags - latest on main pushes, `v<semver>` on tag pushes. The `dev-` prefix stays as the everyday CI tag so reviewers can tell at a glance whether an image came from a feature branch or a release.
+
+Exit codes
+0 success.
+2 usage error (missing or invalid --target).
+64 docker build failed.
+65 reserved - missing cross artifact for the aarch64 path (lands in Step 3).
+67 --target=aarch64 reached this stub. Lands in Step 3.
+
+### After pasting
+
+Run the verification block again - the markdown is plain prose, no fences inside fences, so lint should still be green. Then stage the README file alongside `package.sh`:
+
+```bash
+git add scripts/README.md
+git diff --cached --stat
+# Expect both scripts/package.sh and scripts/README.md.
 
 ## How to add a new verb
 

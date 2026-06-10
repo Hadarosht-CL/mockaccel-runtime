@@ -13,10 +13,12 @@
 # that only replaces the body of main().
 #
 # Exit codes:
-#   0   nothing to do (stub) or all artifacts produced
+#   0   success
 #   1   generic failure
 #   2   usage error
-#   64  packaging step failed (reserved for Stage 7)
+#   64  docker build failed
+#   65  missing cross artifact (Step 3)
+#   67  not yet implemented (aarch64 in Step 2)
 
 set -Eeuo pipefail
 IFS=$'\n\t'
@@ -32,24 +34,51 @@ Usage: package.sh [--help]
 
 Produces distributable artifacts. Not implemented yet; lands in Stage 7.
 
-Planned artifacts:
-  - docker image: mockaccel/device-simulator:<version>
-  - python wheel: pymockaccel-<version>-*.whl
-  - arm64 tarball: mockaccel-runtime-<version>-aarch64.tar.gz
+Options:
+  --target=T      Build target. T is one of:
+                    host     build for the current host (default).
+                    aarch64  cross-compile for 64-bit ARM Linux using
+                             cmake/toolchains/aarch64-linux-gnu.cmake.
+                             Requires aarch64-linux-gnu-g++ on PATH.
+  --clean         Remove the build directory before configuring.
+  --debug         Configure as Debug. Default: Release.
+  --jobs N        Parallel build jobs. Default: cmake's auto-detect.
+  --build-dir DIR Build directory. Default: 'build' for host,
+                  'build-aarch64' for aarch64, or $BUILD_DIR.
+  -h, --help      Show this help and exit.
+
+Environment:
+  (future update in step 4)
 
 Options:
   -h, --help    Show this help and exit.
 
 Exit codes:
-  0   stub success / future: all artifacts produced
+  0   package success
+  1   generic failure
   2   usage error
-  64  packaging step failed (future)
+  64  docker build failed
+  65  missing cross artifact (future, step 3)
+  67  not yet implemented (aarch64 in Step 2)
 EOF
 }
+
+# CI plumbing
+target=""
 
 # --- arg parsing -----------------------------------------------------------
 while (($# > 0)); do
     case "$1" in
+        --target)
+            shift
+            if (($# == 0)); then
+                log_error "--target requires a value"
+                usage >&2
+                exit 2
+            fi
+            target="$1"
+            ;;
+        --target=*) target="${1#*=}" ;;
         -h | --help)
             usage
             exit 0
@@ -60,18 +89,45 @@ while (($# > 0)); do
             exit 2
             ;;
     esac
-    # SC2317: every case currently exits, making `shift` unreachable.
-    # Kept on purpose: Stage 7 will add real flags that fall through,
-    # and the rest of scripts/ uses this exact loop shape.
-    # shellcheck disable=SC2317
     shift
 done
 
+# Validate --target
+case "${target}" in
+    "") die "must specify --target" 2 ;;
+    host | aarch64) ;;
+    *) die "--target must be 'host' or 'aarch64', got '${target}'" 2 ;;
+esac
+
 # --- main ------------------------------------------------------------------
 main() {
-    log_step "package: stub"
-    log_warn "package.sh is not implemented yet (lands in Stage 7)"
-    log_info "this stub locks the verb name so CI in Stage 6 can call ./scripts/package.sh"
+    local arch_label
+    require_cmd docker
+    case "${target}" in
+        host) arch_label="amd64" ;;
+        aarch64) arch_label="arm64" ;;
+    esac
+
+    local short_sha
+    short_sha="$(git -C "$(repo_root)" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+
+    local tag="mockaccel-runtime:dev-${arch_label}-${short_sha}"
+    log_step "package: target=${target} tag=${tag}"
+
+    case "${target}" in
+        host)
+            if ! docker build -t "${tag}" "$(repo_root)"; then
+                die "package: docker build failed: 64"
+            fi
+            log_step "package: done"
+            log_info "image: ${tag}"
+            ;;
+        aarch64)
+            log_warn "package: --target=aarch64 is wired in step 3 of stage 7"
+            log_info "tag would be: ${tag}"
+            exit 67
+            ;;
+    esac
     exit 0
 }
 
