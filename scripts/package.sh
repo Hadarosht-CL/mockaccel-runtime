@@ -110,7 +110,8 @@ main() {
     local short_sha
     short_sha="$(git -C "$(repo_root)" rev-parse --short HEAD 2>/dev/null || echo unknown)"
 
-    local tag="mockaccel-runtime:dev-${arch_label}-${short_sha}"
+    local tag
+    tag="mockaccel-runtime:dev-${arch_label}-${short_sha}"
     log_step "package: target=${target} tag=${tag}"
 
     case "${target}" in
@@ -118,13 +119,27 @@ main() {
             if ! docker build -t "${tag}" "$(repo_root)"; then
                 die "package: docker build failed: 64"
             fi
-            log_step "package: done"
+            log_step "package for host: done"
             log_info "image: ${tag}"
             ;;
         aarch64)
-            log_warn "package: --target=aarch64 is wired in step 3 of stage 7"
             log_info "tag would be: ${tag}"
-            exit 67
+            local cross_bin
+            cross_bin="$(repo_root)/build-aarch64/device_simulator/mockaccel_device_simulator"
+
+            if [[ ! -f "${cross_bin}" ]]; then
+                die "package: cross artifact missing at ${cross_bin}; run scripts/build.sh --target=aarch64 first" 65
+            fi
+
+            if ! docker buildx build \
+                --platform=linux/arm64 \
+                --build-arg TARGETARCH=arm64 \
+                --load \
+                -t "${tag}" \
+                "$(repo_root)"; then
+                die "package: docker build failed: 65"
+            fi
+            log_step "package for aarch64: done"
             ;;
     esac
     exit 0

@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
 failure-threshold: warning
 ignored:
-  - DL3008  # Pin versions in apt-get install. Impractical against a moving Debian base; pinning would force chasing point releases as the apt index is pruned.
+  - DL3008  # Pin apt-get versions. Impractical on a moving Debian base.
+  - DL3006  # Tag image versions. False positive: ${TARGETARCH} alias resolves to a named local stage, not a registry image.

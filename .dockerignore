@@ -1,7 +1,6 @@
 # Exclude common build and editor directories from Docker build context
 .git/
 build/
-build-aarch64/
 .venv/
 .mypy_cache/
 .ruff_cache/
